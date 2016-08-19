@@ -4,6 +4,8 @@ from math import ceil
 import sys
 import os
 
+count = 0
+count_lock = threading.Lock()
 class my_thread(threading.Thread):
 	def __init__(self, tid, bytes_range, url, file_size):
 		threading.Thread.__init__(self)
@@ -15,7 +17,26 @@ class my_thread(threading.Thread):
 	def run(self):
 		download_chunk(self.tid, self.bytes_range, self.url, self.file_size)	
 
+def dlProgress(count, blockSize, totalSize):
+      percent = int(count*blockSize*100/totalSize)
+      sys.stdout.write("%2d%%" % percent)
+      sys.stdout.write("\b\b\b")
+      sys.stdout.flush()
+
+def printProgress (iteration, total, prefix = '', suffix = '', decimals = 1, barLength = 100):
+    formatStr       = "{0:." + str(decimals) + "f}"
+    percents        = formatStr.format(100 * (iteration / float(total)))
+    filledLength    = int(round(barLength * iteration / float(total)))
+    bar             = '' * filledLength + '-' * (barLength - filledLength)
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix)),
+    sys.stdout.flush()
+    if iteration == total:
+        sys.stdout.write('\n')
+        sys.stdout.flush()
+
+
 def download_chunk(tid, bytes_range, url, file_size):
+	global count
 	(ll,ul) = bytes_range
 	if ul > file_size - 1:
 		ul = file_size - 1 
@@ -24,7 +45,11 @@ def download_chunk(tid, bytes_range, url, file_size):
 	#print r.headers, 'tno= ', tid
 	f = open('part_' + str(tid), 'wb')
 	for item in r.iter_content(1024):
-		f.write(item)
+		f.write(item)	
+		count_lock.acquire()
+		count += 1024
+		printProgress(count, file_size)
+		count_lock.release()
 	f.close()
 
 def combine_files(parts, path):
@@ -34,7 +59,9 @@ def combine_files(parts, path):
 				output.writelines(f.readlines())
 			os.remove(part)
 
-def super_download(url, path):
+def super_download(url, path):	
+	global count 
+	count = 0
 	res = requests.get(url, stream = True)
 	#print res.headers
 	file_size = float(res.headers['content-length'])
