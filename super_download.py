@@ -66,7 +66,7 @@ def super_download(url, path):
 	#print res.headers
 	file_size = float(res.headers['content-length'])
 	num_threads = 64
-	if not res.headers['accept-ranges']:
+	if not res.headers.get('accept-ranges'):
 		num_threads = 1
 	res.close()
 	ceil_file_size = ceil(file_size/num_threads) * num_threads
